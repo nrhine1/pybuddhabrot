@@ -57,7 +57,7 @@ def compute_path(x, y, max_x_units, max_y_units, max_its):
 
     escaped = False
     for it in xrange(int(max_its)):
-        z = iterate(z, c)
+        z = z**2 + c
 
         if z.real >= max_x_units or z.real < -max_x_units \
            or z.imag >= max_y_units or z.imag < -max_y_units:
@@ -79,7 +79,8 @@ def compute_and_draw_path(resolution, *args):
 hits = numpy.zeros((0,0))
 
 
-#additive computation 
+# additive computation. can compute 
+# from previous files
 def multi_bb(max_its = 100,
              all_hits = None):
 
@@ -87,14 +88,16 @@ def multi_bb(max_its = 100,
     if all_hits is not None:
         assert(os.path.isfile(all_hits))
 
+        bn = os.path.basename(all_hits)
         # only run from prev multis
-        assert(all_hits.split('_')[0] == 'multi')
+        assert(bn.split('_')[0] == 'multi')
 
-        n_prev_its = int(all_hits.split('_')[2])
+        n_prev_its = int(bn.split('_')[2])
         all_hits = numpy.load(all_hits)['arr_0']
 
     for i in range(max_its):
-        last_fn, last_hits = main()
+        print "on iteration {}/{}".format(i, max_its - 1)
+        last_fn, last_hits = main(save = False)
 
         # grab the shape and dtype info to init
         if all_hits is None:
@@ -103,31 +106,34 @@ def multi_bb(max_its = 100,
 
 
     ts = str(datetime.datetime.now()).split()[1][:10]
-    fn_base = 'multi_buddabrot_{}_iterations_{}'.format(max_its + n_prev_its, ts)
+    fn_base = 'multi_buddhabrot_{}_iterations_{}'.format(max_its + n_prev_its, ts)
 
     numpy_fn = fn_base + '.npz'
     numpy.savez_compressed(numpy_fn, all_hits)
 
     # iu.v(((all_hits / float(all_hits.max()))).astype('float64'))
 
-    save_hits(all_hits, fn_base)
-    return all_hits, fn_base
+    fn = save_hits(all_hits, fn_base)
+    return fn
 
 def save_hits(hit_arr, fn_base):        
-    Image.fromarray(((hit_arr / float(hit_arr.max()))* 255).astype('uint8')).save(fn_base + '.png')
+    final_fn = fn_base + '.png'
+    Image.fromarray(((hit_arr / float(hit_arr.max()))* 255).astype('uint8')).save(final_fn)
+    return final_fn
 
 # very naive way to compute a buddhabrot
-def main():
+def main(save = True,
+         width = 1600,
+         height = 1600,
+         pixels_per_unit = 400.0,
+         n_points = 10000,
+         max_its_per_point = 100):
 
     # nonsquare arrays untested
-    width, height = 1600, 1600
-    pixels_per_unit = 400.0
     
     global hits
     hits = numpy.zeros((width, height), dtype = numpy.float64)
 
-    n_points = 10000
-    max_its_per_point = 100
 
     max_x_pixels = width / 2
     max_y_pixels = height / 2
@@ -164,11 +170,12 @@ def main():
         
     ts = str(datetime.datetime.now()).split()[1][:10]
 
-    fn_base = 'buddabrot_{}_points_{}_iterations_{}'.format(n_points, max_its_per_point, ts)
-    save_hits(hits, fn_base)
+    fn_base = 'buddhabrot_{}_points_{}_iterations_{}'.format(n_points, max_its_per_point, ts)
 
     numpy_fn = fn_base + '.npz'
-    numpy.savez_compressed(numpy_fn, hits)
+    if save:
+        save_hits(hits, fn_base)
+        numpy.savez_compressed(numpy_fn, hits)
 
     # copy global array
     return numpy_fn, hits.copy()
